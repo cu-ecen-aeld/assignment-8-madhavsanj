@@ -1,54 +1,61 @@
 #!/bin/sh
 
 case "$1" in
-  start)
-    echo "S98lddmodules: loading scull, faulty, hello"
+start)
+echo "S98lddmodules: loading aesdchar, scull, faulty, hello"
 
-    # Load modules (use insmod for scull/faulty; modprobe required for hello)
-    insmod /lib/modules/*/extra/scull.ko  >/dev/null 2>&1 || true
-    insmod /lib/modules/*/extra/faulty.ko >/dev/null 2>&1 || true
-    modprobe hello >/dev/null 2>&1 || true
 
-    # Create device nodes (since helper scripts aren't installed)
-    SCULL_MAJOR=$(awk '$2=="scull"{print $1}' /proc/devices)
-    FAULTY_MAJOR=$(awk '$2=="faulty"{print $1}' /proc/devices)
+# Load modules using modprobe (preferred for Buildroot)
+modprobe aesdchar >/dev/null 2>&1 || true
+modprobe scull    >/dev/null 2>&1 || true
+modprobe faulty   >/dev/null 2>&1 || true
+modprobe hello    >/dev/null 2>&1 || true
 
-    if [ -n "$FAULTY_MAJOR" ] && [ ! -e /dev/faulty ]; then
-      mknod /dev/faulty c "$FAULTY_MAJOR" 0
+AESD_MAJOR=$(awk '$2=="aesdchar"{print $1}' /proc/devices)
+SCULL_MAJOR=$(awk '$2=="scull"{print $1}' /proc/devices)
+FAULTY_MAJOR=$(awk '$2=="faulty"{print $1}' /proc/devices)
+
+if [ -n "$AESD_MAJOR" ] && [ ! -e /dev/aesdchar ]; then
+  mknod /dev/aesdchar c "$AESD_MAJOR" 0
+fi
+
+if [ -n "$FAULTY_MAJOR" ] && [ ! -e /dev/faulty ]; then
+  mknod /dev/faulty c "$FAULTY_MAJOR" 0
+fi
+
+if [ -n "$SCULL_MAJOR" ]; then
+  i=0
+  while [ $i -lt 4 ]; do
+    if [ ! -e "/dev/scull$i" ]; then
+      mknod "/dev/scull$i" c "$SCULL_MAJOR" $i
     fi
+    i=$((i+1))
+  done
+fi
+;;
 
-    # scull usually exposes 4 devices 0-3
-    if [ -n "$SCULL_MAJOR" ]; then
-      i=0
-      while [ $i -lt 4 ]; do
-        if [ ! -e "/dev/scull$i" ]; then
-          mknod "/dev/scull$i" c "$SCULL_MAJOR" $i
-        fi
-        i=$((i+1))
-      done
-    fi
-    ;;
+stop)
+echo "S98lddmodules: unloading hello, faulty, scull, aesdchar"
 
-  stop)
-    echo "S98lddmodules: unloading hello, faulty, scull"
+rm -f /dev/aesdchar /dev/faulty /dev/scull0 /dev/scull1 /dev/scull2 /dev/scull3
 
-    # Remove device nodes (optional but clean)
-    rm -f /dev/faulty /dev/scull0 /dev/scull1 /dev/scull2 /dev/scull3
+rmmod hello    >/dev/null 2>&1 || true
+rmmod faulty   >/dev/null 2>&1 || true
+rmmod scull    >/dev/null 2>&1 || true
+rmmod aesdchar >/dev/null 2>&1 || true
+;;
 
-    rmmod hello  >/dev/null 2>&1 || true
-    rmmod faulty >/dev/null 2>&1 || true
-    rmmod scull  >/dev/null 2>&1 || true
-    ;;
 
-  restart)
-    $0 stop
-    $0 start
-    ;;
+restart)
+$0 stop
+$0 start
+;;
 
-  *)
-    echo "Usage: $0 {start|stop|restart}"
-    exit 1
-    ;;
+*)
+echo "Usage: $0 {start|stop|restart}"
+exit 1
+;;
 esac
 
 exit 0
+#should see this

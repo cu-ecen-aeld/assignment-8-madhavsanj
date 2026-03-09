@@ -1,0 +1,5 @@
+config BR2_PACKAGE_AESD_CHAR_DRIVER
+    bool "aesd-char-driver"
+    help
+      Build and install the aesd char driver kernel module
+      from the assignments-3-and-later repository.
